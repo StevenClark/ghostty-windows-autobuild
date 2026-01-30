@@ -1,0 +1,54 @@
+name: ghostty-win-build
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-and-build:
+    runs-on: windows-latest
+    steps:
+      - name: fetch-upstream-sha
+        id: upstream
+        shell: pwsh
+        run: |
+          $sha = git ls-remote https://github.com/ghostty-org/ghostty.git HEAD | ForEach-Object { $_.Split("`t")[0] }
+          $shortSha = $sha.Substring(0, 7)
+          $date = Get-Date -Format "yyyy-MM-dd"
+          echo "sha=$sha" >> $env:GITHUB_OUTPUT
+          echo "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
+          echo "date=$date" >> $env:GITHUB_OUTPUT
+
+      - name: check-cache
+        id: cache-marker
+        uses: actions/cache@v4
+        with:
+          path: last_built_sha.txt
+          key: ghostty-build-${{ steps.upstream.outputs.sha }}
+
+      - name: checkout-source
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ghostty-org/ghostty
+
+      - name: setup-zig-0.13.0
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
+      - name: build-release
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        run: zig build -Doptimize=ReleaseFast
+
+      - name: update-cache-file
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        run: echo "${{ steps.upstream.outputs.sha }}" > last_built_sha.txt
+
+      - name: upload-artifact
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostty-win-${{ steps.upstream.outputs.date }}-${{ steps.upstream.outputs.short_sha }}
+          path: zig-out/bin/ghostty.exe
