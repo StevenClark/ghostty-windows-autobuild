@@ -31,12 +31,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ghostty-org/ghostty
+          fetch-depth: 1 # Faster shallow clone
 
-      - name: setup-zig-0.13.0
+      - name: setup-zig-auto
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        uses: mlugg/setup-zig@v1
+        uses: mlugg/setup-zig@v2
         with:
-          version: 0.13.0
+          version: '' 
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
@@ -46,9 +47,15 @@ jobs:
         if: steps.cache-marker.outputs.cache-hit != 'true'
         run: echo "${{ steps.upstream.outputs.sha }}" > last_built_sha.txt
 
-      - name: upload-artifact
+      - name: create-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        uses: actions/upload-artifact@v4
+        uses: softprops/action-gh-release@v2
         with:
-          name: ghostty-win-${{ steps.upstream.outputs.date }}-${{ steps.upstream.outputs.short_sha }}
-          path: zig-out/bin/ghostty.exe
+          tag_name: build-${{ steps.upstream.outputs.date }}-${{ steps.upstream.outputs.short_sha }}
+          name: Ghostty Windows Build (${{ steps.upstream.outputs.date }})
+          body: |
+            Automated build of Ghostty for Windows.
+            Upstream Commit: https://github.com/ghostty-org/ghostty/commit/${{ steps.upstream.outputs.sha }}
+          files: zig-out/bin/ghostty.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
