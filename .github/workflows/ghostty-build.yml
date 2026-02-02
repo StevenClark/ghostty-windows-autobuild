@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ghostty-org/ghostty
-          fetch-depth: 1 # Faster shallow clone
+          fetch-depth: 1
 
       - name: setup-zig-auto
         if: steps.cache-marker.outputs.cache-hit != 'true'
@@ -41,7 +41,7 @@ jobs:
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        run: zig build -Doptimize=ReleaseFast
+        run: zig build -Doptimize=ReleaseFast -Ddocs=false
 
       - name: update-cache-file
         if: steps.cache-marker.outputs.cache-hit != 'true'
