@@ -41,7 +41,8 @@ jobs:
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        run: zig build -Doptimize=ReleaseFast -Ddocs=false
+        # Specifically targeting the 'ghostty' step to avoid helpgen errors
+        run: zig build ghostty -Doptimize=ReleaseFast
 
       - name: update-cache-file
         if: steps.cache-marker.outputs.cache-hit != 'true'
