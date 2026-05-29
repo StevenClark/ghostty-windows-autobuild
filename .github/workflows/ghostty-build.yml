@@ -67,11 +67,14 @@ jobs:
               Copy-Item $_.FullName $alias
             }
           }
-          zig build \
-            --search-prefix "$msysPrefix" \
-            -Dtarget=x86_64-windows-gnu \
-            -Doptimize=ReleaseFast \
-            -Dapp-runtime=gtk
+          $zigArgs = @(
+            "build",
+            "--search-prefix", "$msysPrefix",
+            "-Dtarget=x86_64-windows-gnu",
+            "-Doptimize=ReleaseFast",
+            "-Dapp-runtime=gtk"
+          )
+          zig @zigArgs
 
       - name: verify-release-file
         if: steps.cache-marker.outputs.cache-hit != 'true'
