@@ -97,6 +97,22 @@ jobs:
           )
           Set-Content -Encoding utf8 $gresourcePath $gresource
 
+          $applicationPath = "src\apprt\gtk\class\application.zig"
+          $application = Get-Content -Raw $applicationPath
+          $application = $application.Replace(
+            '    fn startupSignals(self: *Self) void {' + "`n" + '        const priv = self.private();',
+            '    fn startupSignals(self: *Self) void {' + "`n" + '        if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '            _ = self;' + "`n" + '            return;' + "`n" + '        }' + "`n`n" + '        const priv = self.private();'
+          )
+          Set-Content -Encoding utf8 $applicationPath $application
+
+          $postForkPath = "src\apprt\gtk\post_fork.zig"
+          $postFork = Get-Content -Raw $postForkPath
+          $postFork = $postFork.Replace(
+            'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {',
+            'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '        _ = cmd;' + "`n" + '        return;' + "`n" + '    }' + "`n`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {'
+          )
+          Set-Content -Encoding utf8 $postForkPath $postFork
+
           Remove-Item -Recurse -Force ".zig-cache" -ErrorAction SilentlyContinue
           Get-ChildItem (Join-Path $msysPrefix "lib\lib*.dll.a") | ForEach-Object {
             $alias = $_.FullName -replace '\.dll\.a$', '.a'
