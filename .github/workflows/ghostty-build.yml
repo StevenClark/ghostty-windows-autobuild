@@ -44,6 +44,7 @@ jobs:
           path-type: inherit
           update: true
           install: >-
+            mingw-w64-ucrt-x86_64-blueprint-compiler
             mingw-w64-ucrt-x86_64-gtk4
             mingw-w64-ucrt-x86_64-libadwaita
             mingw-w64-ucrt-x86_64-pkgconf
