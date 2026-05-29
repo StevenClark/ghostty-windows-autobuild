@@ -91,6 +91,10 @@ jobs:
             '    try stdout.end();',
             '    try writer.flush();'
           )
+          $gresource = $gresource.Replace(
+            '    <file compressed=\"true\" preprocess=\"xml-stripblanks\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n',
+            '    <file compressed=\"true\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n'
+          )
           Set-Content -Encoding utf8 $gresourcePath $gresource
 
           Remove-Item -Recurse -Force ".zig-cache" -ErrorAction SilentlyContinue
