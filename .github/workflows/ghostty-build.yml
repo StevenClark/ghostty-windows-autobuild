@@ -113,6 +113,20 @@ jobs:
           )
           Set-Content -Encoding utf8 $postForkPath $postFork
 
+          $extraLibs = " -lffi -lappstream -lole32 -lshlwapi -liphlpapi -ldnsapi -liconv -lpcre2-8 -lfribidi -lthai"
+          foreach ($pcFile in @(
+            (Join-Path $msysPrefix "lib\pkgconfig\gtk4.pc"),
+            (Join-Path $msysPrefix "lib\pkgconfig\libadwaita-1.pc"),
+            (Join-Path $msysPrefix "lib\pkgconfig\glib-2.0.pc"),
+            (Join-Path $msysPrefix "lib\pkgconfig\gobject-2.0.pc")
+          )) {
+            $pc = Get-Content -Raw $pcFile
+            if ($pc -notlike "*$extraLibs*") {
+              $pc = $pc -replace '(?m)^Libs: (.*)$', "Libs: `$1$extraLibs"
+              Set-Content -Encoding utf8 $pcFile $pc
+            }
+          }
+
           Remove-Item -Recurse -Force ".zig-cache" -ErrorAction SilentlyContinue
           Get-ChildItem (Join-Path $msysPrefix "lib\lib*.dll.a") | ForEach-Object {
             $alias = $_.FullName -replace '\.dll\.a$', '.a'
