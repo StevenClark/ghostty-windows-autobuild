@@ -57,15 +57,18 @@ jobs:
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        shell: msys2 {0}
+        shell: pwsh
         run: |
-          export PATH="/ucrt64/bin:$PATH"
-          for lib in /ucrt64/lib/lib*.dll.a; do
-            alias="${lib/.dll.a/.a}"
-            [ -e "$alias" ] || cp "$lib" "$alias"
-          done
+          $msysPrefix = Join-Path $env:RUNNER_TEMP "msys64\ucrt64"
+          $env:PATH = "$(Join-Path $msysPrefix 'bin');$env:PATH"
+          Get-ChildItem (Join-Path $msysPrefix "lib\lib*.dll.a") | ForEach-Object {
+            $alias = $_.FullName -replace '\.dll\.a$', '.a'
+            if (!(Test-Path $alias)) {
+              Copy-Item $_.FullName $alias
+            }
+          }
           zig build \
-            --search-prefix /ucrt64 \
+            --search-prefix "$msysPrefix" \
             -Dtarget=x86_64-windows-gnu \
             -Doptimize=ReleaseFast \
             -Dapp-runtime=gtk
