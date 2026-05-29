@@ -80,6 +80,15 @@ jobs:
           Get-Command blueprint-compiler -All
           blueprint-compiler --version
           blueprint-compiler compile --output "$env:RUNNER_TEMP\debug-warning.ui" "src\apprt\gtk\ui\1.2\debug-warning.blp"
+
+          $gresourcePath = "src\apprt\gtk\build\gresource.zig"
+          $gresource = Get-Content -Raw $gresourcePath
+          $gresource = $gresource.Replace(
+            'if (!std.mem.endsWith(u8, ui_file, expected)) continue;',
+            'const normalized = try std.mem.replaceOwned(u8, alloc, ui_file, "\\", "/"); defer alloc.free(normalized); if (!std.mem.endsWith(u8, normalized, expected)) continue;'
+          )
+          Set-Content -Encoding utf8 $gresourcePath $gresource
+
           Remove-Item -Recurse -Force ".zig-cache" -ErrorAction SilentlyContinue
           Get-ChildItem (Join-Path $msysPrefix "lib\lib*.dll.a") | ForEach-Object {
             $alias = $_.FullName -replace '\.dll\.a$', '.a'
