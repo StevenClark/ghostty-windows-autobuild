@@ -36,6 +36,17 @@ jobs:
           repository: ghostty-org/ghostty
           fetch-depth: 1
 
+      - name: setup-msys2
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gtk4
+            mingw-w64-ucrt-x86_64-libadwaita
+            mingw-w64-ucrt-x86_64-pkgconf
+
       - name: setup-zig-auto
         if: steps.cache-marker.outputs.cache-hit != 'true'
         uses: mlugg/setup-zig@v2
@@ -44,7 +55,14 @@ jobs:
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        run: zig build -Doptimize=ReleaseFast -Dapp-runtime=gtk
+        shell: msys2 {0}
+        run: |
+          export PATH="/ucrt64/bin:$PATH"
+          zig build \
+            --search-prefix /ucrt64 \
+            -Dtarget=x86_64-windows-gnu \
+            -Doptimize=ReleaseFast \
+            -Dapp-runtime=gtk
 
       - name: verify-release-file
         if: steps.cache-marker.outputs.cache-hit != 'true'
