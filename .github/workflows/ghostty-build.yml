@@ -36,6 +36,19 @@ jobs:
           repository: ghostty-org/ghostty
           fetch-depth: 1
 
+      - name: setup-msys2
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-blueprint-compiler
+            mingw-w64-ucrt-x86_64-gtk4
+            mingw-w64-ucrt-x86_64-libadwaita
+            mingw-w64-ucrt-x86_64-pkgconf
+
       - name: setup-zig-auto
         if: steps.cache-marker.outputs.cache-hit != 'true'
         uses: mlugg/setup-zig@v2
@@ -44,7 +57,100 @@ jobs:
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        run: zig build -Doptimize=ReleaseFast
+        shell: pwsh
+        run: |
+          $msysPrefix = Join-Path $env:RUNNER_TEMP "msys64\ucrt64"
+          $msysBin = Join-Path $msysPrefix "bin"
+          $shimDir = Join-Path $env:RUNNER_TEMP "ghostty-shims"
+          New-Item -ItemType Directory -Force $shimDir | Out-Null
+          $env:PATH = "$shimDir;$msysBin;$env:PATH"
+          $env:PYTHONUTF8 = "1"
+          $env:PYTHONIOENCODING = "utf-8"
+
+          $blueprintScript = Join-Path $msysBin "blueprint-compiler"
+          $blueprintShim = Join-Path $shimDir "blueprint-compiler.cmd"
+          @"
+          @echo off
+          set PYTHONUTF8=1
+          set PYTHONIOENCODING=utf-8
+          "$msysBin\python.exe" "$blueprintScript" %*
+          "@ | Set-Content -Encoding ascii $blueprintShim
+
+          Get-ChildItem $msysBin -Filter "*blueprint*" | Select-Object FullName
+          Get-Command blueprint-compiler -All
+          blueprint-compiler --version
+          blueprint-compiler compile --output "$env:RUNNER_TEMP\debug-warning.ui" "src\apprt\gtk\ui\1.2\debug-warning.blp"
+
+          $gresourcePath = "src\apprt\gtk\build\gresource.zig"
+          $gresource = Get-Content -Raw $gresourcePath
+          $gresource = $gresource.Replace(
+            'if (!std.mem.endsWith(u8, ui_file, expected)) continue;',
+            'const normalized = try std.mem.replaceOwned(u8, alloc, ui_file, "\\", "/"); defer alloc.free(normalized); if (!std.mem.endsWith(u8, normalized, expected)) continue;'
+          )
+          $gresource = $gresource.Replace(
+            '    try stdout.end();',
+            '    try writer.flush();'
+          )
+          $gresource = $gresource.Replace(
+            '    <file compressed=\"true\" preprocess=\"xml-stripblanks\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n',
+            '    <file compressed=\"true\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n'
+          )
+          Set-Content -Encoding utf8 $gresourcePath $gresource
+
+          $applicationPath = "src\apprt\gtk\class\application.zig"
+          $application = Get-Content -Raw $applicationPath
+          $application = $application.Replace(
+            '    fn startupSignals(self: *Self) void {' + "`n" + '        const priv = self.private();',
+            '    fn startupSignals(self: *Self) void {' + "`n" + '        if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '            return;' + "`n" + '        }' + "`n`n" + '        const priv = self.private();'
+          )
+          Set-Content -Encoding utf8 $applicationPath $application
+
+          $postForkPath = "src\apprt\gtk\post_fork.zig"
+          $postFork = Get-Content -Raw $postForkPath
+          $postFork = $postFork.Replace(
+            'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {',
+            'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '        return;' + "`n" + '    }' + "`n`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {'
+          )
+          Set-Content -Encoding utf8 $postForkPath $postFork
+
+          $extraLibs = " -lffi -lappstream -lole32 -lshlwapi -liphlpapi -ldnsapi -liconv -lpcre2-8 -lfribidi -lthai -ldatrie"
+          foreach ($pcFile in @(
+            (Join-Path $msysPrefix "lib\pkgconfig\gtk4.pc"),
+            (Join-Path $msysPrefix "lib\pkgconfig\libadwaita-1.pc"),
+            (Join-Path $msysPrefix "lib\pkgconfig\glib-2.0.pc"),
+            (Join-Path $msysPrefix "lib\pkgconfig\gobject-2.0.pc")
+          )) {
+            $pc = Get-Content -Raw $pcFile
+            if ($pc -notlike "*$extraLibs*") {
+              $pc = $pc -replace '(?m)^Libs: (.*)$', "Libs: `$1$extraLibs"
+              Set-Content -Encoding utf8 $pcFile $pc
+            }
+          }
+
+          Remove-Item -Recurse -Force ".zig-cache" -ErrorAction SilentlyContinue
+          Get-ChildItem (Join-Path $msysPrefix "lib\lib*.dll.a") | ForEach-Object {
+            $alias = $_.FullName -replace '\.dll\.a$', '.a'
+            if (!(Test-Path $alias)) {
+              Copy-Item $_.FullName $alias
+            }
+          }
+          $zigArgs = @(
+            "build",
+            "--search-prefix", "$msysPrefix",
+            "-Dtarget=x86_64-windows-gnu",
+            "-Doptimize=ReleaseFast",
+            "-Dapp-runtime=gtk"
+          )
+          zig @zigArgs
+
+      - name: verify-release-file
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          if (!(Test-Path "zig-out/bin/ghostty.exe")) {
+            Get-ChildItem -Recurse zig-out -ErrorAction SilentlyContinue
+            throw "Expected release file was not built: zig-out/bin/ghostty.exe"
+          }
 
       - name: update-cache-file
         if: steps.cache-marker.outputs.cache-hit != 'true'
