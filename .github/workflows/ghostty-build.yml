@@ -44,7 +44,16 @@ jobs:
 
       - name: build-release
         if: steps.cache-marker.outputs.cache-hit != 'true'
-        run: zig build -Doptimize=ReleaseFast
+        run: zig build -Doptimize=ReleaseFast -Dapp-runtime=gtk
+
+      - name: verify-release-file
+        if: steps.cache-marker.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          if (!(Test-Path "zig-out/bin/ghostty.exe")) {
+            Get-ChildItem -Recurse zig-out -ErrorAction SilentlyContinue
+            throw "Expected release file was not built: zig-out/bin/ghostty.exe"
+          }
 
       - name: update-cache-file
         if: steps.cache-marker.outputs.cache-hit != 'true'
