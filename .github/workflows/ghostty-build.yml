@@ -59,6 +59,10 @@ jobs:
         shell: msys2 {0}
         run: |
           export PATH="/ucrt64/bin:$PATH"
+          for lib in /ucrt64/lib/lib*.dll.a; do
+            alias="${lib/.dll.a/.a}"
+            [ -e "$alias" ] || cp "$lib" "$alias"
+          done
           zig build \
             --search-prefix /ucrt64 \
             -Dtarget=x86_64-windows-gnu \
