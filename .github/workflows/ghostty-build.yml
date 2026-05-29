@@ -113,7 +113,7 @@ jobs:
           )
           Set-Content -Encoding utf8 $postForkPath $postFork
 
-          $extraLibs = " -lffi -lappstream -lole32 -lshlwapi -liphlpapi -ldnsapi -liconv -lpcre2-8 -lfribidi -lthai"
+          $extraLibs = " -lffi -lappstream -lole32 -lshlwapi -liphlpapi -ldnsapi -liconv -lpcre2-8 -lfribidi -lthai -ldatrie"
           foreach ($pcFile in @(
             (Join-Path $msysPrefix "lib\pkgconfig\gtk4.pc"),
             (Join-Path $msysPrefix "lib\pkgconfig\libadwaita-1.pc"),
