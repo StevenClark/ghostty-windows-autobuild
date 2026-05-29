@@ -87,6 +87,10 @@ jobs:
             'if (!std.mem.endsWith(u8, ui_file, expected)) continue;',
             'const normalized = try std.mem.replaceOwned(u8, alloc, ui_file, "\\", "/"); defer alloc.free(normalized); if (!std.mem.endsWith(u8, normalized, expected)) continue;'
           )
+          $gresource = $gresource.Replace(
+            '    try stdout.end();',
+            '    try writer.flush();'
+          )
           Set-Content -Encoding utf8 $gresourcePath $gresource
 
           Remove-Item -Recurse -Force ".zig-cache" -ErrorAction SilentlyContinue
