@@ -60,7 +60,20 @@ jobs:
         shell: pwsh
         run: |
           $msysPrefix = Join-Path $env:RUNNER_TEMP "msys64\ucrt64"
-          $env:PATH = "$(Join-Path $msysPrefix 'bin');$env:PATH"
+          $msysBin = Join-Path $msysPrefix "bin"
+          $shimDir = Join-Path $env:RUNNER_TEMP "ghostty-shims"
+          New-Item -ItemType Directory -Force $shimDir | Out-Null
+          $env:PATH = "$shimDir;$msysBin;$env:PATH"
+
+          $blueprintScript = Join-Path $msysBin "blueprint-compiler"
+          $blueprintShim = Join-Path $shimDir "blueprint-compiler.cmd"
+          @"
+          @echo off
+          "$msysBin\python.exe" "$blueprintScript" %*
+          "@ | Set-Content -Encoding ascii $blueprintShim
+
+          Get-ChildItem $msysBin -Filter "*blueprint*" | Select-Object FullName
+          Get-Command blueprint-compiler -All
           Get-ChildItem (Join-Path $msysPrefix "lib\lib*.dll.a") | ForEach-Object {
             $alias = $_.FullName -replace '\.dll\.a$', '.a'
             if (!(Test-Path $alias)) {
