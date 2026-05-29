@@ -101,7 +101,7 @@ jobs:
           $application = Get-Content -Raw $applicationPath
           $application = $application.Replace(
             '    fn startupSignals(self: *Self) void {' + "`n" + '        const priv = self.private();',
-            '    fn startupSignals(self: *Self) void {' + "`n" + '        if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '            _ = self;' + "`n" + '            return;' + "`n" + '        }' + "`n`n" + '        const priv = self.private();'
+            '    fn startupSignals(self: *Self) void {' + "`n" + '        if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '            return;' + "`n" + '        }' + "`n`n" + '        const priv = self.private();'
           )
           Set-Content -Encoding utf8 $applicationPath $application
 
@@ -109,7 +109,7 @@ jobs:
           $postFork = Get-Content -Raw $postForkPath
           $postFork = $postFork.Replace(
             'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {',
-            'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '        _ = cmd;' + "`n" + '        return;' + "`n" + '    }' + "`n`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {'
+            'pub fn postFork(cmd: *Command) Command.PostForkError!void {' + "`n" + '    if (comptime @import("builtin").os.tag == .windows) {' + "`n" + '        return;' + "`n" + '    }' + "`n`n" + '    switch (cmd.rt_post_fork_info.linux_cgroup) {'
           )
           Set-Content -Encoding utf8 $postForkPath $postFork
 
